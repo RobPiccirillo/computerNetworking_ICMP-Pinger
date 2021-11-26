@@ -1,3 +1,4 @@
+import statistics
 from socket import *
 import os
 import sys
@@ -36,6 +37,7 @@ def checksum(string):
 
 def receiveOnePing(mySocket, ID, timeout, destAddr):
     timeLeft = timeout
+    global roundTrip_min, roundTrip_max, roundTrip_count, roundTrip_sum, roundTrip_stdevList
 
     while 1:
         startedSelect = time.time()
@@ -52,13 +54,26 @@ def receiveOnePing(mySocket, ID, timeout, destAddr):
         # Fetch the ICMP header from the IP packet
         icmpHeader = recPacket[20:28]
         icmpType, code, checksum, pID, sequence = struct.unpack("bbHHh", icmpHeader)
-        #print("ICMP Header: " icmpType, code, checksum, pID, sequence)
+        print("ICMP Header: ", icmpType, code, checksum, pID, sequence)
+        roundTrip = 0
 
-        if pID == ID & icmpType != 8:
-            bytesToDouble = struct.calcsize("d")
-            timeTo = struct.unpack("d", recPacket[28:28 + bytesToDouble])[0]
-            roundTrip = timeReceived - timeTo
-            return roundTrip
+        if pID != ID: #& icmpType != 8:
+            return 'Expected type=0'
+
+        bytesToDouble = struct.calcsize("d")
+        timeTo = struct.unpack("d", recPacket[28:28 + bytesToDouble])[0]
+        roundTrip = (timeReceived - timeTo)*1000
+
+        roundTrip_min = min(roundTrip_min, roundTrip)
+        roundTrip_max = max(roundTrip_max, roundTrip)
+        roundTrip_count += 1
+        roundTrip_sum += roundTrip
+        roundTrip_stdevList.append(roundTrip)
+        print("RTT Count:", roundTrip_count)
+        print("RTT Min:", roundTrip_min)
+        print("RTT Max:", roundTrip_max)
+
+        return roundTrip
 
 
         # Fill in end
@@ -111,18 +126,44 @@ def doOnePing(destAddr, timeout):
 
 
 def ping(host, timeout=1):
+    global roundTrip_count, roundTrip_sum, roundTrip_min, roundTrip_max, roundTrip_stdevList
+    roundTrip_min = float('+inf')
+    roundTrip_max = float('-inf')
+    roundTrip_count = 0
+    roundTrip_sum = 0
+    roundTrip_stdevList = []
+    count = 0
     # timeout=1 means: If one second goes by without a reply from the server,  	# the client assumes that either the client's ping or the server's pong is lost
     dest = gethostbyname(host)
     print("Pinging " + dest + " using Python:")
     print("")
     # Calculate vars values and return them
-    #  vars = [str(round(packet_min, 2)), str(round(packet_avg, 2)), str(round(packet_max, 2)),str(round(stdev(stdev_var), 2))]
+    #if count != 0:
+    #    packet_avg = roundTrip_sum / roundTrip_count
+    #    vars = [str(round(packet_min, 2)), str(round(packet_avg, 2)), str(round(packet_max, 2)),str(round(stdev(stdev_var), 2))]
+    #else:
+    #    vars = []
+    #    packet_avg = 0
     # Send ping requests to a server separated by approximately one second
     for i in range(0,4):
         delay = doOnePing(dest, timeout)
+        count += 1
+        packet_min = roundTrip_min
+        packet_max = roundTrip_max
+        stdev_var = roundTrip_stdevList        
         print(delay)
         time.sleep(1)  # one second
 
+    if count != 0:
+        packet_avg = roundTrip_sum / roundTrip_count
+        vars = [str(round(packet_min, 4)), str(round(packet_avg, 4)), str(round(packet_max, 4)),str(round(statistics.stdev(stdev_var), 4))]
+    else:
+        vars = []
+        packet_avg = 0
+        
+    #print(vars)
+    #if vars == []:
+    #    print("No vars")
     return vars
 
 if __name__ == '__main__':
