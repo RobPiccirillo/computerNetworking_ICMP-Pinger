@@ -54,7 +54,7 @@ def receiveOnePing(mySocket, ID, timeout, destAddr):
         # Fetch the ICMP header from the IP packet
         icmpHeader = recPacket[20:28]
         icmpType, code, checksum, pID, sequence = struct.unpack("bbHHh", icmpHeader)
-        print("ICMP Header: ", icmpType, code, checksum, pID, sequence)
+        #print("ICMP Header: ", icmpType, code, checksum, pID, sequence)
         roundTrip = 0
 
         if pID != ID: #& icmpType != 8:
@@ -69,9 +69,9 @@ def receiveOnePing(mySocket, ID, timeout, destAddr):
         roundTrip_count += 1
         roundTrip_sum += roundTrip
         roundTrip_stdevList.append(roundTrip)
-        print("RTT Count:", roundTrip_count)
-        print("RTT Min:", roundTrip_min)
-        print("RTT Max:", roundTrip_max)
+        #print("RTT Count:", roundTrip_count)
+        #print("RTT Min:", roundTrip_min)
+        #print("RTT Max:", roundTrip_max)
 
         return roundTrip
 
